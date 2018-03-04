@@ -18,7 +18,7 @@ server {
      
     #静态资源交由nginx管理
     location /static {
-        root        /var/code/go/src/project/test; #通过www.gotest.com/static/jquery.js访问
+        root        /var/code/go/src/project/test; #要在该目录下建个static目录,通过www.gotest.com/static/jquery.js访问
         expires     1d;
         add_header  Cache-Control public;
         access_log  off;
