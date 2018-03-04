@@ -1,0 +1,51 @@
+配置方法一
+upstream frontends {    
+    ip_hash;  
+    server 127.0.0.1:9090;
+    #server 127.0.0.1:9091;//可负载均衡
+}
+server {
+    listen      80; 
+    server_name gotest.com www.gotest.com;
+    location / {
+        proxy_pass_header Server;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Scheme $scheme;
+        proxy_pass http://frontends;
+    }
+     
+    #静态资源交由nginx管理
+    location /static {
+        root        /var/code/go/src/project/test;
+        expires     1d;
+        add_header  Cache-Control public;
+        access_log  off;
+    }
+}
+#################################################################
+配制方法二
+server{
+
+listen 80;
+
+server_name  www.gotest2.com gotest2.com;
+
+location /{
+
+try_files /_not_exists @backend;
+
+}
+
+location @backend{
+
+proxy_set_header X-Forwarded-For $remote_addr;
+
+proxy_set_header Host            $http_host;
+
+proxy_pass  http://localhost:9090;
+
+}
+
+}
