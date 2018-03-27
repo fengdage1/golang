@@ -1,3 +1,4 @@
+//打印panic堆栈函数调用信息
 func PanicTrace(kb int) []byte {
 	s := []byte("/src/runtime/panic.go")
 	e := []byte("\ngoroutine ")
