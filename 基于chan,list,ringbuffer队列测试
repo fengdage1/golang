@@ -1,0 +1,195 @@
+结论：
+一千万条数据，家用笔记本,
+ringbuffer的最快，20秒左右
+chan 次之,30秒左右
+list 最慢,50秒左右
+
+总结：
+由于是家用电脑，如果是多核服务器，chan表现应该还好点,list最慢,但是还在可以接受的范围，差距并不很大。
+ringbuufer和chan都只能是固定长度,list可以无限增长
+推荐固定长度用chan(差距不大，如果多核服务器，差距更小),要容量动态增长用list,不用ringbuffer
+
+
+
+/***************************************************************
+//ringbuffer
+***************************************************************/
+
+
+
+package main
+import (
+	"github.com/Workiva/go-datastructures/queue"
+	"fmt"
+	"time"
+	"sync"
+)
+
+var wg sync.WaitGroup
+func main(){
+	q:=queue.NewRingBuffer(100)
+	for i:=0;i<100;i++{
+		go func(arg int){
+			for{
+				v,err:=q.Get()
+				if err != nil{
+					fmt.Println(err)
+				}
+				_=v
+				//fmt.Println(arg,v)
+			}
+		}(i)
+	}
+	t1 := time.Now()
+	for i:=0;i<100;i++{
+		wg.Add(1)
+		go func(){
+			for j:=0;j<1000000;j++{
+				err:=q.Put(j)
+				if err != nil{
+					fmt.Println(err)
+				}
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	fmt.Println(time.Since(t1))
+	//cc:=make(chan struct{})
+	//<-cc
+}
+
+
+
+
+/***************************************************************
+//chan
+***************************************************************/
+
+
+
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+	//"sync/atomic"
+)
+//var cnt uint64
+var wg sync.WaitGroup
+
+func main() {
+	c:=make(chan interface{},100)
+	for i:=0;i<100;i++{
+		go func(arg int){
+			for{
+				select{
+				case v:=<-c:
+					//atomic.AddUint64(&cnt,1)
+					_=v
+					//fmt.Println(arg,v)
+				}
+			}
+		}(i)
+	}
+	t1 := time.Now()
+	for i:=0;i<100;i++{
+		wg.Add(1)
+		go func(){
+			for j:=0;j<1000000;j++{
+				c<-j
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	fmt.Println(time.Since(t1))
+	//fmt.Println(cnt)
+	//cc:=make(chan struct{})
+	//<-cc
+}
+
+
+
+
+/***************************************************************
+//list
+***************************************************************/
+package main
+import(
+	"container/list"
+	"sync"
+	"runtime"
+	"time"
+	"fmt"
+)
+type Queue struct{
+	list *list.List
+	lock sync.Mutex
+
+}
+func (this *Queue) Put(element interface{}){
+	this.lock.Lock()
+	this.list.PushBack(element)
+	this.lock.Unlock()
+}
+
+func (this *Queue) Get() (interface{}){
+	for{
+		this.lock.Lock()
+		if this.Len() == 0 {
+			this.lock.Unlock()
+			runtime.Gosched()
+		} else{
+			v:=this.list.Front()
+			this.list.Remove(v)
+			this.lock.Unlock()
+			return v.Value
+		}
+	}
+}
+
+func (this *Queue) Len() (int){
+	return this.list.Len()
+}
+
+func NewQueue() *Queue{
+	return &Queue{list:list.New()}
+}
+
+var wg sync.WaitGroup
+
+func main(){
+	q := NewQueue()
+	for i:=0;i<100;i++{
+		go func(arg int){
+			for{
+				v:=q.Get()
+				_=v
+				//fmt.Println(arg,v)
+			}
+		}(i)
+	}
+	t:=time.Now()
+	for i:=0;i<100;i++{
+		wg.Add(1)
+		go func(){
+			for j:=0;j<1000000;j++{
+				q.Put(j)
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	for{
+		if q.Len()==0{
+			break
+		}
+		runtime.Gosched()
+	}
+	fmt.Println(time.Since(t))
+	c:=make(chan struct{})
+	<-c
+}
+
