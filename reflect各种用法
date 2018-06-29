@@ -1,0 +1,235 @@
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+type ST struct{
+	Va string
+	Vb string
+	Vc int32
+	Vd float32
+}
+
+func (this *ST) F1(){
+	fmt.Println("f1")
+}
+
+func (this *ST) F2(arg string){
+	this.Va = arg
+	fmt.Println("f2")
+}
+
+func (this *ST) F3(){
+	fmt.Println("f3")
+}
+
+func (this ST) F4(){
+	fmt.Println("f4")
+}
+
+func (this ST) F5(arg int){
+	fmt.Println("f5:")
+	this.Vc = int32(arg)
+	fmt.Println(arg)
+}
+
+
+func main() {
+	ptrTest()
+	structTest()
+	refPtr(&ST{Va:"sva",Vb:"svb",Vc:16,Vd:3.14})
+	refStruct(ST{Va:"sva",Vb:"svb",Vc:16,Vd:3.14})
+}
+
+
+func ptrTest(){
+	fmt.Println("ptr---------")
+	stptr := &ST{Va:"sva",Vb:"svb",Vc:16,Vd:3.14}
+	fmt.Println("ptr ----------")
+	_type:=reflect.TypeOf(stptr)
+	fmt.Println(_type) //*main.ST
+	fmt.Println(_type.Kind())  //ptr
+	fmt.Println(_type.Elem()) //main.ST
+	fmt.Println(_type.Elem().Name()) //ST
+	_value:=reflect.ValueOf(stptr)
+	fmt.Println(_value) //&{sva svb 16 3.14}
+	fmt.Println(_value.Kind()) //ptr
+	fmt.Println(_value.Type()) //*main.ST
+	fmt.Println(_value.Elem().Type()) //main.ST
+	//遍历值
+	for i:=0; i<_value.Elem().NumField(); i++{
+		field := _value.Elem().Field(i) //field 是reflect.Value类型
+		fmt.Println(field.Type())  //string string int32 float32
+		fmt.Println(_value.Elem().Type().Field(i)) //{va main string  0 [0] false} {vb main string  16 [1] false} ...
+		fmt.Println(_type.Elem().Field(i).Name) //Va Vb Vc Vd
+		fmt.Println(_value.Elem().Field(i)) //sva svb 16 3.14
+		///Interface断言的字段必须是大写，否则会出错
+		//还原成数值是field.Interface().(string/int/float)
+		fmt.Println(field.Interface()) //sva svb 16 3.14
+		//赋值
+		if v := _value.Elem().FieldByName("Vc"); v.IsValid() && v.CanSet() {
+			//v.SetString("hehe")
+			//v.SetInt(25)
+		}
+	}
+	//遍历方法,首字母必须要大写才能遍历到
+	for i := 0; i < _type.NumMethod(); i++ {
+		fmt.Println(i)
+		fmt.Println(_type.Method(i).Name) //F1 F2 F3 F4 F5
+		//执行成员函数
+		arg := []reflect.Value{}
+		_value.Method(0).Call(arg)
+		/*
+		f1:=_value.MethodByName("F1")
+		if f1.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{}
+			f1.Call(arg)
+		}
+		f2:=_value.MethodByName("F2")
+		if f2.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{reflect.ValueOf("nihao")}
+			f2.Call(arg)
+		}
+		f5:=_value.MethodByName("F5")
+		if f5.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{reflect.ValueOf(2)}
+			f5.Call(arg)
+		}*/
+	}
+}
+
+func structTest(){
+	fmt.Println("struct---------")
+	st := ST{Va:"sva",Vb:"svb",Vc:16,Vd:3.14}
+	_type:=reflect.TypeOf(st)
+	fmt.Println(_type) //main.ST
+	fmt.Println(_type.Kind())  //struct
+	fmt.Println(_type.Name()) //ST
+	_value:=reflect.ValueOf(st)
+	fmt.Println(_value) //{sva svb 16 3.14}
+	fmt.Println(_value.Kind()) //struct
+	fmt.Println(_value.Type()) //main.ST
+	//遍历值
+	for i:=0; i<_value.NumField(); i++{
+		field := _value.Field(i) //field 是reflect.Value类型
+		fmt.Println(field.Type())  //string string int32 float32
+		fmt.Println(_value.Type().Field(i)) //{va string  0 [0] false} {vb string  16 [1] false} ...
+		fmt.Println(_type.Field(i).Name) //Va Vb Vc Vd
+		fmt.Println(_value.Field(i)) //sva svb 16 3.14
+		///Interface断言的字段必须是大写，否则会出错
+		//还原成数值是field.Interface().(string/int/float)
+		fmt.Println(field.Interface()) //sva svb 16 3.14
+		///这里不是指针无法采用下面方式赋值
+		//if v := _value.FieldByName("Vc"); v.IsValid() && v.CanSet() {
+		//v.SetString("hehe")
+		//v.SetInt(25)
+		//}
+	}
+	//遍历方法,首字母必须要大写才能遍历到
+	for i := 0; i < _type.NumMethod(); i++ {
+		fmt.Println(i)
+		fmt.Println(_type.Method(i).Name) //F4 F5
+		//执行成员函数
+		arg := []reflect.Value{reflect.ValueOf(2)}
+		//这里只能执行不带*的函数,否则报错
+		_value.Method(1).Call(arg)
+		f5:=_value.MethodByName("F5")
+		f5.Call(arg)
+	}
+}
+
+
+func refPtr(stptr interface{}){
+	fmt.Println("refptr-------------------------")
+	_type:=reflect.TypeOf(stptr)
+	fmt.Println(_type) //*main.ST
+	fmt.Println(_type.Kind())  //ptr
+	fmt.Println(_type.Elem()) //main.ST
+	fmt.Println(_type.Elem().Name()) //ST
+	_value:=reflect.ValueOf(stptr)
+	fmt.Println(_value) //&{sva svb 16 3.14}
+	fmt.Println(_value.Kind()) //ptr
+	fmt.Println(_value.Type()) //*main.ST
+	fmt.Println(_value.Elem().Type()) //main.ST
+	//遍历值
+	for i:=0; i<_value.Elem().NumField(); i++{
+		field := _value.Elem().Field(i) //field 是reflect.Value类型
+		fmt.Println(field.Type())  //string string int32 float32
+		fmt.Println(_value.Elem().Type().Field(i)) //{va main string  0 [0] false} {vb main string  16 [1] false} ...
+		fmt.Println(_type.Elem().Field(i).Name) //Va Vb Vc Vd
+		fmt.Println(_value.Elem().Field(i)) //sva svb 16 3.14
+		///Interface断言的字段必须是大写，否则会出错
+		//还原成数值是field.Interface().(string/int/float)
+		fmt.Println(field.Interface()) //sva svb 16 3.14
+		fmt.Println(_value.Elem().Field(0).Interface().(string))//sva
+		//赋值
+		if v := _value.Elem().FieldByName("Vc"); v.IsValid() && v.CanSet() {
+			//v.SetString("hehe")
+			//v.SetInt(25)
+		}
+	}
+	//遍历方法,首字母必须要大写才能遍历到
+	for i := 0; i < _type.NumMethod(); i++ {
+		fmt.Println(i)
+		fmt.Println(_type.Method(i).Name) //F1 F2 F3 F4 F5
+		//执行成员函数
+		arg := []reflect.Value{}
+		_value.Method(0).Call(arg)
+		/*
+		f1:=_value.MethodByName("F1")
+		if f1.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{}
+			f1.Call(arg)
+		}
+		f2:=_value.MethodByName("F2")
+		if f2.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{reflect.ValueOf("nihao")}
+			f2.Call(arg)
+		}
+		f5:=_value.MethodByName("F5")
+		if f5.IsValid() { //执行某个成员函数
+			arg := []reflect.Value{reflect.ValueOf(2)}
+			f5.Call(arg)
+		}*/
+	}
+}
+
+func refStruct(st interface{}){
+	fmt.Println("ref------------")
+	_type:=reflect.TypeOf(st)
+	fmt.Println(_type) //main.ST
+	fmt.Println(_type.Kind())  //struct
+	fmt.Println(_type.Name()) //ST
+	_value:=reflect.ValueOf(st)
+	fmt.Println(_value) //{sva svb 16 3.14}
+	fmt.Println(_value.Kind()) //struct
+	fmt.Println(_value.Type()) //main.ST
+	//遍历值
+	for i:=0; i<_value.NumField(); i++{
+		field := _value.Field(i) //field 是reflect.Value类型
+		fmt.Println(field.Type())  //string string int32 float32
+		fmt.Println(_value.Type().Field(i)) //{va string  0 [0] false} {vb string  16 [1] false} ...
+		fmt.Println(_type.Field(i).Name) //Va Vb Vc Vd
+		fmt.Println(_value.Field(i)) //sva svb 16 3.14
+		///Interface断言的字段必须是大写，否则会出错
+		//还原成数值是field.Interface().(string/int/float)
+		fmt.Println(field.Interface()) //sva svb 16 3.14
+		///这里不是指针无法采用下面方式赋值
+		//if v := _value.FieldByName("Vc"); v.IsValid() && v.CanSet() {
+		//v.SetString("hehe")
+		//v.SetInt(25)
+		//}
+	}
+	//遍历方法,首字母必须要大写才能遍历到
+	for i := 0; i < _type.NumMethod(); i++ {
+		fmt.Println(i)
+		fmt.Println(_type.Method(i).Name) //F4 F5
+		//执行成员函数
+		arg := []reflect.Value{reflect.ValueOf(2)}
+		//这里只能执行不带*的函数,否则报错
+		_value.Method(1).Call(arg)
+		f5:=_value.MethodByName("F5")
+		f5.Call(arg)
+	}
+}
